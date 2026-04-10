@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
 use esp_idf_hal::gpio::*;
-use esp_idf_hal::peripheral::Peripheral;
 use esp_idf_sys::*;
 
 pub struct FrameBuffer<'a> {
@@ -213,71 +212,58 @@ pub struct Camera<'a> {
 
 impl<'a> Camera<'a> {
     pub fn new(
-        // pin_pwdn: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        // pin_reset: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_xclk: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_sccb_sda: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_sccb_scl: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_d0: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_d1: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_d2: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_d3: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_d4: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_d5: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_d6: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_d7: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_vsync: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_href: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        pin_pclk: impl Peripheral<P = impl InputPin + OutputPin> + 'a,
-        xmclk_freq_hz: i32,
+        pin_xclk:  AnyIOPin,
+        pin_sda:   AnyIOPin,
+        pin_scl:   AnyIOPin,
+        pin_d0:    AnyIOPin,
+        pin_d1:    AnyIOPin,
+        pin_d2:    AnyIOPin,
+        pin_d3:    AnyIOPin,
+        pin_d4:    AnyIOPin,
+        pin_d5:    AnyIOPin,
+        pin_d6:    AnyIOPin,
+        pin_d7:    AnyIOPin,
+        pin_vsync: AnyIOPin,
+        pin_href:  AnyIOPin,
+        pin_pclk:  AnyIOPin,
+        xclk_freq_hz: i32,
         jpeg_quality: i32,
-        frame_buffer_count: usize,
+        fb_count:  usize,
         grab_mode: camera::camera_grab_mode_t,
         frame_size: camera::framesize_t,
     ) -> Result<Self, esp_idf_sys::EspError> {
-        esp_idf_hal::into_ref!(
-            /*pin_pwdn, pin_reset,*/ pin_xclk, pin_sccb_sda, pin_sccb_scl, pin_d0, pin_d1, pin_d2, pin_d3, pin_d4, pin_d5, pin_d6,
-            pin_d7, pin_vsync, pin_href, pin_pclk
-        );
-        let config = camera::camera_config_t {
-            pin_pwdn: -1,
-            pin_reset: -1,
-            pin_xclk: pin_xclk.pin(),
-            __bindgen_anon_1: esp_idf_sys::camera::camera_config_t__bindgen_ty_1 {
-                pin_sscb_sda: pin_sccb_sda.pin(),
-            },
-            __bindgen_anon_2: esp_idf_sys::camera::camera_config_t__bindgen_ty_2 {
-                pin_sscb_scl: pin_sccb_scl.pin(),
-            },    
+        let mut config: camera::camera_config_t = unsafe { core::mem::zeroed() };
 
-            pin_d0: pin_d0.pin(),
-            pin_d1: pin_d1.pin(),
-            pin_d2: pin_d2.pin(),
-            pin_d3: pin_d3.pin(),
-            pin_d4: pin_d4.pin(),
-            pin_d5: pin_d5.pin(),
-            pin_d6: pin_d6.pin(),
-            pin_d7: pin_d7.pin(),
-            pin_vsync: pin_vsync.pin(),
-            pin_href: pin_href.pin(),
-            pin_pclk: pin_pclk.pin(),
+        config.pin_pwdn   = -1;
+        config.pin_reset  = -1;
+        config.pin_xclk   = pin_xclk.pin() as i32;
+        config.__bindgen_anon_1.pin_sccb_sda = pin_sda.pin() as i32;
+        config.__bindgen_anon_2.pin_sccb_scl = pin_scl.pin() as i32;
+        config.pin_d7     = pin_d7.pin() as i32;
+        config.pin_d6     = pin_d6.pin() as i32;
+        config.pin_d5     = pin_d5.pin() as i32;
+        config.pin_d4     = pin_d4.pin() as i32;
+        config.pin_d3     = pin_d3.pin() as i32;
+        config.pin_d2     = pin_d2.pin() as i32;
+        config.pin_d1     = pin_d1.pin() as i32;
+        config.pin_d0     = pin_d0.pin() as i32;
+        config.pin_vsync  = pin_vsync.pin() as i32;
+        config.pin_href   = pin_href.pin() as i32;
+        config.pin_pclk   = pin_pclk.pin() as i32;
+        config.xclk_freq_hz = xclk_freq_hz;
+        config.ledc_timer   = esp_idf_sys::ledc_timer_t_LEDC_TIMER_0;
+        config.ledc_channel = esp_idf_sys::ledc_channel_t_LEDC_CHANNEL_0;
+        config.pixel_format = camera::pixformat_t_PIXFORMAT_JPEG;
+        config.frame_size   = frame_size;
+        config.jpeg_quality = jpeg_quality;
+        config.fb_count     = fb_count;
+        config.fb_location  = camera::camera_fb_location_t_CAMERA_FB_IN_PSRAM;
+        config.grab_mode    = grab_mode;
+        config.sccb_i2c_port = -1;  // Let the driver manage its own I2C port
 
-            xclk_freq_hz: xmclk_freq_hz,
-            ledc_timer: esp_idf_sys::ledc_timer_t_LEDC_TIMER_0,
-            ledc_channel: esp_idf_sys::ledc_channel_t_LEDC_CHANNEL_0,
-
-            pixel_format: camera::pixformat_t_PIXFORMAT_JPEG,
-            frame_size: frame_size,
-
-            jpeg_quality: jpeg_quality,
-            fb_count: frame_buffer_count,
-            grab_mode: grab_mode,
-
-            ..Default::default()
-        };
-
-        esp_idf_sys::esp!(unsafe { camera::esp_camera_init(&config) })?;
+        unsafe { esp!(camera::esp_camera_init(&config)) }?;
         Ok(Self { _p: PhantomData })
+
     }
 
     pub fn get_framebuffer(&self) -> Option<FrameBuffer> {

@@ -3,16 +3,17 @@ name = "esp-camera-rs"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-esp-idf-hal = "0.43.1"
-esp-idf-sys = "0.34.1"
+esp-idf-hal = "0.46"
+esp-idf-sys = "0.37"
 
-[patch.crates-io]
-esp-idf-sys = {git = "https://github.com/esp-rs/esp-idf-sys", branch = "master"}
+[features]
+default = []
+
+[package.metadata.esp-idf-sys]
+esp_idf_components = ["esp32-camera"]
 
 [[package.metadata.esp-idf-sys.extra_components]]
-component_dirs = "esp32-camera"
+remote_component = { name = "espressif/esp32-camera", version = "2.1.6" }
 bindings_header = "bindings.h"
 bindings_module = "camera"
